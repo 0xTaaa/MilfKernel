@@ -11,18 +11,19 @@
 # Use this script on root of kernel directory
 
 SECONDS=0 # builtin bash timer
-ZIPNAME="RyzenKernel-AOSP-Ginkgo-$(TZ=Asia/Jakarta date +"%Y%m%d-%H%M").zip"
-ZIPNAME_KSU="RyzenKernel-AOSP-Ginkgo-KSU-$(TZ=Asia/Jakarta date +"%Y%m%d-%H%M").zip"
+ZIPNAME="MilfKernel-AOSP-Ginkgo-$(TZ=Asia/Jakarta date +"%Y%m%d-%H%M").zip"
+ZIPNAME_KSU="MilfKernel-AOSP-Ginkgo-KSU-$(TZ=Asia/Jakarta date +"%Y%m%d-%H%M").zip"
 TC_DIR="/workspace/toolchain/linux-x86"
 CLANG_DIR="/workspace/toolchain/linux-x86/clang-r498229b"
 GCC_64_DIR="/workspace/toolchain/aarch64-linux-android-4.9"
 GCC_32_DIR="/workspace/toolchain/arm-linux-androideabi-4.9"
 AK3_DIR="/workspace/android/AnyKernel3"
 DEFCONFIG="vendor/ginkgo-perf_defconfig"
+source .env
 
 export PATH="$CLANG_DIR/bin:$PATH"
-export KBUILD_BUILD_USER="EdwiinKJ"
-export KBUILD_BUILD_HOST="RastaMod69"
+export KBUILD_BUILD_USER="MikaPrjkt"
+export KBUILD_BUILD_HOST="MikaCloud"
 export KBUILD_BUILD_VERSION="1"
 export LOCALVERSION
 
@@ -64,7 +65,7 @@ echo -e "\nKSU Support, let's Make it On\n"
 else
 echo -e "\nKSU not Support, let's Make it off\n"
 sed -i 's/CONFIG_KSU=y/CONFIG_KSU=n/g' arch/arm64/configs/vendor/ginkgo-perf_defconfig
-sed -i 's/CONFIG_LOCALVERSION="-RyzenKernel-KSU"/CONFIG_LOCALVERSION="-RyzenKernel"/g' arch/arm64/configs/vendor/ginkgo-perf_defconfig
+sed -i 's/CONFIG_LOCALVERSION="-MilfKernel-KSU"/CONFIG_LOCALVERSION="-MilfKernel"/g' arch/arm64/configs/vendor/ginkgo-perf_defconfig
 fi
 
 mkdir -p out
@@ -107,3 +108,29 @@ exit 1
 fi
 echo "Move Zip into Home Directory"
 mv *.zip /workspace
+
+echo "sending file to telegram"
+
+#send normal variant to telegram
+push_document() {
+    curl -s -X POST \
+        https://api.telegram.org/bot"$token"/sendDocument \
+        -F chat_id="$chat_id" \
+	-F document=@"$1" \
+        -F "parse_mode=html" \
+        -F "disable_web_page_preview=true"
+}
+
+push_document "/workspace/$ZIPNAME"
+
+#send kernelSU variant to telegram
+kirim_document() {
+    curl -s -X POST \
+        https://api.telegram.org/bot"$token"/sendDocument \
+        -F chat_id="$chat_id" \
+        -F document=@"$1" \
+        -F "parse_mode=html" \
+        -F "disable_web_page_preview=true"
+}
+
+kirim_document "/workspace/$ZIPNAME_KSU"
