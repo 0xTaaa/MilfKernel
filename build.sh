@@ -13,6 +13,7 @@
 SECONDS=0 # builtin bash timer
 ZIPNAME="MilfKernel-AOSP-Ginkgo-$(TZ=Asia/Jakarta date +"%Y%m%d-%H%M").zip"
 ZIPNAME_KSU="MilfKernel-AOSP-Ginkgo-KSU-$(TZ=Asia/Jakarta date +"%Y%m%d-%H%M").zip"
+ZIPNAME_NH="MilfKernel-AOSP-Ginkgo-NetHunter-$(TZ=Asia/Jakarta date +"%Y%m%d-%H%M").zip"
 TC_DIR="/workspace/toolchain/linux-x86"
 CLANG_DIR="/workspace/toolchain/linux-x86/clang-r498229b"
 GCC_64_DIR="/workspace/toolchain/aarch64-linux-android-4.9"
@@ -54,6 +55,9 @@ fi
 if [[ $1 = "-k" || $1 = "--ksu" ]]; then
 	echo -e "\nCleanup KernelSU first on local build\n"
 	rm -rf KernelSU drivers/kernelsu
+
+elif [[ $1 = "-NH" || $1 = "--NetHunter" ]]; then
+	echo -e "\nBuild with Nethunter Support\n"
 else
 	echo -e "\nSet No KernelSU Install, just skip\n"
 fi
@@ -62,8 +66,14 @@ fi
 curl -kLSs "https://raw.githubusercontent.com/kutemeikito/KernelSU/main/kernel/setup.sh" | bash -s main
 if [[ $1 = "-k" || $1 = "--ksu" ]]; then
 echo -e "\nKSU Support, let's Make it On\n"
+
+elif [[ $1 = "-NH" || $1 = "--NetHunter" ]]; then
+echo -e "\nNetHunter Support, let's Make It On\n"
+sed -i '$a\source "nethunter/Kconfig"' arch/arm64/Kconfig
+sed -i 's/CONFIG_KSU=y/CONFIG_KSU=n/g' arch/arm64/configs/vendor/ginkgo-perf_defconfig
+sed -i 's/CONFIG_LOCALVERSION="-MilfKernel-KSU"/CONFIG_LOCALVERSION="-MilfKernel-NH"/g' arch/arm64/configs/vendor/ginkgo-perf_defconfig
 else
-echo -e "\nKSU not Support, let's Make it off\n"
+echo -e "\nKSU or NetHunter Not Support, let's build normal version\n"
 sed -i 's/CONFIG_KSU=y/CONFIG_KSU=n/g' arch/arm64/configs/vendor/ginkgo-perf_defconfig
 sed -i 's/CONFIG_LOCALVERSION="-MilfKernel-KSU"/CONFIG_LOCALVERSION="-MilfKernel"/g' arch/arm64/configs/vendor/ginkgo-perf_defconfig
 fi
@@ -77,9 +87,10 @@ make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld AR=llvm-ar AS=llvm-as 
 if [ -f "out/arch/arm64/boot/Image.gz-dtb" ] && [ -f "out/arch/arm64/boot/dtbo.img" ]; then
 echo -e "\nKernel compiled succesfully! Zipping up...\n"
 git restore arch/arm64/configs/vendor/ginkgo-perf_defconfig
+git restore arch/arm64/Kconfig
 if [ -d "$AK3_DIR" ]; then
 cp -r $AK3_DIR AnyKernel3
-elif ! git clone -q https://github.com/kutemeikito/AnyKernel3; then
+elif ! git clone -q https://github.com/0xTaaa/AnyKernel3; then
 echo -e "\nAnyKernel3 repo not found locally and cloning failed! Aborting..."
 exit 1
 fi
@@ -90,6 +101,8 @@ cd AnyKernel3
 git checkout master &> /dev/null
 if [[ $1 = "-k" || $1 = "--ksu" ]]; then
 zip -r9 "../$ZIPNAME_KSU" * -x '*.git*' README.md *placeholder
+elif [[ $1 = "-NH" || $1 = "--NetHunter" ]]; then
+zip -r9 "../$ZIPNAME_NH" * -x '*.git*' README.md *placeholder
 else
 zip -r9 "../$ZIPNAME" * -x '*.git*' README.md *placeholder
 fi
@@ -99,6 +112,8 @@ rm -rf out/arch/arm64/boot
 echo -e "\nCompleted in $((SECONDS / 60)) minute(s) and $((SECONDS % 60)) second(s) !"
 if [[ $1 = "-k" || $1 = "--ksu" ]]; then
 echo "Zip: $ZIPNAME_KSU"
+elif [[ $1 = "-NH" || $1 = "--NetHunter" ]]; then
+echo -e "Zip: $ZIPNAME_NH"
 else
 echo "Zip: $ZIPNAME"
 fi
@@ -134,3 +149,15 @@ kirim_document() {
 }
 
 kirim_document "/workspace/$ZIPNAME_KSU"
+
+#send NetHunter Variant to telegram
+send() {
+curl -s -X POST \
+https://api.telegram.org/bot"$token"/sendDocument \
+ -F chat_id="$chat_id" \
+ -F document=@"$1" \
+ -F "parse_mode=html" \
+ -F "disable_web_page_preview=true"
+}
+
+send "/workspace/$ZIPNAME_NH"
